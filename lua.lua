@@ -8189,7 +8189,7 @@ task.spawn(function()
     spp.Size = Vector3.new(2,2,2)
     spp.Color = Theme.Accent1
     spp.Material = Enum.Material.Neon
-    spp.Transparency = 1
+    spp.Transparency = 0.5
     spp.Anchored = true
     spp.CanCollide = false
     spp.CastShadow = false
@@ -8205,7 +8205,6 @@ task.spawn(function()
     beam.Width0 = 0.05; beam.Width1 = 0.05
     beam.FaceCamera = true
     beam.Attachment0 = cAtt; beam.Attachment1 = sAtt
-    beam.Enabled = false
     beam.Parent = spp
 
     local bb = Instance.new("BillboardGui")
@@ -8213,7 +8212,6 @@ task.spawn(function()
     bb.Size = UDim2.new(0,200,0,50)
     bb.StudsOffset = Vector3.new(0,3,0)
     bb.AlwaysOnTop = true
-    bb.Enabled = false
     bb.Parent = spp
 
     local tl = Instance.new("TextLabel", bb)
@@ -8226,6 +8224,13 @@ task.spawn(function()
     tl.TextScaled = false
     tl.TextSize = 12
     tl.Text = "SERVER POS\n-- studs"
+
+    local function setupHrp(hrp)
+        if cframeConn then cframeConn:Disconnect() end
+        cframeConn = hrp:GetPropertyChangedSignal("CFrame"):Connect(function()
+            if Config.DesyncVisualizer then serverPos = hrp.Position end
+        end)
+    end
 
     RunService.Heartbeat:Connect(function()
         local v = Config.DesyncVisualizer
@@ -8242,28 +8247,15 @@ task.spawn(function()
         cAtt.Parent = hrp
 
         local pos = hrp.Position
+        if (pos - lastPos).Magnitude > 25 then serverPos = pos end
         spp.Position = serverPos + Vector3.new(0,-2.5,0)
         lastPos = pos
 
-        tl.TextColor3 = Theme.Accent1
-        beam.Color = ColorSequence.new(Theme.Accent1)
-        spp.Color = Theme.Accent1
+        local col = Theme.Accent1
+        spp.Color = col
+        beam.Color = ColorSequence.new(col)
+        tl.TextColor3 = col
         tl.Text = string.format("SERVER POS\n%.1f studs", (serverPos - pos).Magnitude)
-    end)
-
-    -- Capture server pos when desync is toggled ON
-    UserInputService.InputBegan:Connect(function(inp, gp)
-        if gp then return end
-        if Config.DesyncKey ~= "" and inp.KeyCode == Enum.KeyCode[Config.DesyncKey] then
-            Config.DesyncVisualizer = not Config.DesyncVisualizer
-            if Config.DesyncVisualizer then
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then serverPos = hrp.Position end
-            end
-            SaveConfig()
-            ShowNotification("DESYNC", Config.DesyncVisualizer and "ENABLED" or "DISABLED")
-        end
     end)
 
     if raknet and raknet.add_send_hook then
@@ -8277,6 +8269,22 @@ task.spawn(function()
                 packet:SetData(b)
             end
         end)
+    end
+
+    LocalPlayer.CharacterAdded:Connect(function(c)
+        local hrp = c:WaitForChild("HumanoidRootPart")
+        serverPos = hrp.Position
+        lastPos = hrp.Position
+        setupHrp(hrp)
+    end)
+
+    if LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            serverPos = hrp.Position
+            lastPos = hrp.Position
+            setupHrp(hrp)
+        end
     end
 end)
 
