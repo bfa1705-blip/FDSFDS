@@ -4055,13 +4055,8 @@ local function executeReset()
     local character = LocalPlayer.Character
     if not character then return end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if rootPart and humanoid then
-        local toolName = Config.TpSettings.Tool
-        local flying = LocalPlayer.Backpack:FindFirstChild(toolName) or character:FindFirstChild(toolName)
-        if flying then humanoid:EquipTool(flying) end
-                
-        rootPart.CFrame = CFrame.new(0, 15000, 0)
+    if humanoid then
+        humanoid.Health = 0
     end
 end
 
@@ -8247,11 +8242,6 @@ task.spawn(function()
         cAtt.Parent = hrp
 
         local pos = hrp.Position
-        if (pos - lastPos).Magnitude > 25 then
-            serverPos = lastPos
-        else
-            serverPos = pos
-        end
         spp.Position = serverPos + Vector3.new(0,-2.5,0)
         lastPos = pos
 
@@ -8261,11 +8251,16 @@ task.spawn(function()
         tl.Text = string.format("SERVER POS\n%.1f studs", (serverPos - pos).Magnitude)
     end)
 
-    -- Keybind toggle
+    -- Capture server pos when desync is toggled ON
     UserInputService.InputBegan:Connect(function(inp, gp)
         if gp then return end
         if Config.DesyncKey ~= "" and inp.KeyCode == Enum.KeyCode[Config.DesyncKey] then
             Config.DesyncVisualizer = not Config.DesyncVisualizer
+            if Config.DesyncVisualizer then
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then serverPos = hrp.Position end
+            end
             SaveConfig()
             ShowNotification("DESYNC", Config.DesyncVisualizer and "ENABLED" or "DISABLED")
         end
